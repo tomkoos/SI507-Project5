@@ -1,1 +1,7 @@
-Put your Project 5 brief explanation, as directed, here.
+I am accessing the Eventbrite search API and gathering:
+- All *free* and *paid* events, start within this month, still active, and are located within 1 mile from Ann Arbor
+- For each event, I'll be accessing the event's name, category, start and end date, description, organizer, venue name and address, and url
+- I'll write 2 CSV files, one for free events, another for paid events
+- Data in each CSV file: 4 columns -- text, number hashtags, time posted, user who posted the tweet
+- URL for the API: <URL HERE>
+- If necessary, URL describing the authentication process for the API: <URL HERE>
