@@ -6,6 +6,7 @@ from datetime import datetime
 from secret_data import anonymous_token
 
 ANONYMOUS_TOKEN = anonymous_token
+URL = "https://www.eventbriteapi.com/v3/events/search/"
 
 ## CACHING SETUP
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
@@ -70,9 +71,9 @@ def get_data_from_api(request_url, service_ident, params_diction, expire_in_days
             print("Fetching new data from {}".format(request_url))
 
         response = requests.get(request_url,
-                    headers = {"Authorization": "Bearer " + ANONYMOUS_TOKEN},
-                    verify = True,  # Verify SSL certificate
-                    params = params_diction)
+                                headers = {"Authorization": "Bearer " + ANONYMOUS_TOKEN},
+                                verify = True,  # Verify SSL certificate
+                                params = params_diction)
         data = response.json()
         set_in_data_cache(ident, data, expire_in_days)
     return data
@@ -99,21 +100,17 @@ def writeCSV(name, list_events):
                              event.end_date_local, event.description, event.organizer_name,
                              event.venue_name, event.venue_address, event.url])
 
-def create_event_list(params_diction):    
+def create_event_list(url, params_diction):    
     params_diction['page'] = 1
     # get items from the first page
-    eventbrite_result = get_data_from_api("https://www.eventbriteapi.com/v3/events/search/",
-                                          "Eventbrite",
-                                          params_diction)
+    eventbrite_result = get_data_from_api(url, "Eventbrite", params_diction)
     events = eventbrite_result['events']
     list_events = [Event(event) for event in events]
     ## get more items beyond page 1 (50 items are limited per page)
     total_pages = eventbrite_result['pagination']['page_count']
     for i in range(2, total_pages+1):
         params_diction['page'] = i
-        eventbrite_result = get_data_from_api("https://www.eventbriteapi.com/v3/events/search/",
-                                              "Eventbrite",
-                                              params_diction)
+        eventbrite_result = get_data_from_api(url, "Eventbrite", params_diction)
         events = eventbrite_result['events']
         list_events += [Event(event) for event in events]
     return list_events
@@ -127,11 +124,10 @@ params_diction = {"sort_by": "date",
 
 #----- FREE EVENTS -----#
 params_diction["price"]= "free"
-list_events_free = create_event_list(params_diction)
+list_events_free = create_event_list(URL, params_diction)
 writeCSV('Eventbrite_Free_AnnArbor', list_events_free)
-
 
 #----- PAID EVENTS -----#
 params_diction["price"]= "paid"
-list_events_paid = create_event_list(params_diction)
+list_events_paid = create_event_list(URL, params_diction)
 writeCSV('Eventbrite_Paid_AnnArbor', list_events_paid)
