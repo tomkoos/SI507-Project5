@@ -70,30 +70,30 @@ def get_data_from_api(request_url, service_ident, params_diction, expire_in_days
             print("Fetching new data from {}".format(request_url))
 
         response = requests.get(request_url,
-						        headers = {"Authorization": "Bearer " + ANONYMOUS_TOKEN},
-						        verify = True,  # Verify SSL certificate
-						        params = params_diction)
+                    headers = {"Authorization": "Bearer " + ANONYMOUS_TOKEN},
+                    verify = True,  # Verify SSL certificate
+                    params = params_diction)
         data = response.json()
         set_in_data_cache(ident, data, expire_in_days)
     return data
 
 class Event:
-	def __init__(self, diction):
-		self.name = diction['name']['text'].strip()
-		self.url = diction['url']
-		self.category = None if not diction['category'] else diction['category']['name']
-		self.start_date_local = datetime.strptime(diction['start']['local'], '%Y-%m-%dT%H:%M:%S')
-		self.end_date_local = datetime.strptime(diction['end']['local'], '%Y-%m-%dT%H:%M:%S')
-		self.description = diction['description']['text'].strip()
-		self.organizer_name = diction['organizer']['name']
-		self.venue_name = diction['venue']['name']
-		self.venue_address = diction['venue']['address']['localized_address_display']
+  def __init__(self, diction):
+    self.name = diction['name']['text'].strip()
+    self.url = diction['url']
+    self.category = None if not diction['category'] else diction['category']['name']
+    self.start_date_local = datetime.strptime(diction['start']['local'], '%Y-%m-%dT%H:%M:%S')
+    self.end_date_local = datetime.strptime(diction['end']['local'], '%Y-%m-%dT%H:%M:%S')
+    self.description = diction['description']['text'].strip()
+    self.organizer_name = diction['organizer']['name']
+    self.venue_name = diction['venue']['name']
+    self.venue_address = diction['venue']['address']['localized_address_display']
 
 def writeCSV(name, list_events):
     with open('{}.csv'.format(name), 'w', newline='', encoding='utf-8-sig') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(['NAME', 'CATEGORY', 'START DATE', 'END DATE',
-        	             'DESCRIPTION', 'ORGANIZER', 'VENUE', 'ADDRESS', 'URL'])
+                       'DESCRIPTION', 'ORGANIZER', 'VENUE', 'ADDRESS', 'URL'])
         for event in list_events:
             writer.writerow([event.name, event.category, event.start_date_local,
                              event.end_date_local, event.description, event.organizer_name,
