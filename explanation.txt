@@ -1,7 +1,8 @@
 I am accessing the Eventbrite search API and gathering:
-- All *free* and *paid* events, start within this month, still active, and are located within 1 mile from Ann Arbor
+- All free and paid events, start within November, that are still active, and are located within 1 mile from Ann Arbor
 - For each event, I'll be accessing the event's name, category, start and end date, description, organizer, venue name and address, and url
-- I'll write 2 CSV files, one for free events, another for paid events
-- Data in each CSV file: 4 columns -- text, number hashtags, time posted, user who posted the tweet
-- URL for the API: <URL HERE>
-- If necessary, URL describing the authentication process for the API: <URL HERE>
+- I'll write 2 CSV files, one for list of free events, another for list of paid events
+- Data in each CSV file: 9 columns -- name of the event, category, start date (local), end date	(local), description, organizer, venue name, venue address, and the URL for this event
+- Both CSV files' data are sorted by start date
+- URL for the API: https://www.eventbriteapi.com/v3/events/search/
+- URL describing the authentication process for the API: https://www.eventbrite.com/developer/v3/quickstart/
