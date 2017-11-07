@@ -5,11 +5,9 @@ import csv
 from datetime import datetime
 from secret_data import anonymous_token
 
-## CACHING SETUP
-#--------------------------------------------------
-# Caching constants
-#--------------------------------------------------
+ANONYMOUS_TOKEN = anonymous_token
 
+## CACHING SETUP
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 DEBUG = False
 CACHE_FNAME = "cache_contents.json"
@@ -20,9 +18,6 @@ try:
 except:
     CACHE_DICTION = {}
 
-#---------------------------------------------
-# Cache functions
-#---------------------------------------------
 def has_cache_expired(timestamp_str, expire_in_days):
     now = datetime.now()
     cache_timestamp = datetime.strptime(timestamp_str, DATETIME_FORMAT)
@@ -58,18 +53,13 @@ def set_in_data_cache(identifier, data, expire_in_days):
         cache_json = json.dumps(CACHE_DICTION)
         cache_file.write(cache_json)
 
-
-## ADDITIONAL CODE for program should go here...
-## Perhaps authentication setup, functions to get and process data, a class definition... etc.
-ANONYMOUS_TOKEN = anonymous_token
-
 def create_request_identifier(url, params_diction):
     sorted_params = sorted(params_diction.items(),key=lambda x:x[0])
     params_str = "_".join([str(e) for l in sorted_params for e in l])
     total_ident = url + "?" + params_str
     return total_ident.upper()
 
-def get_data_from_api(request_url, service_ident, params_diction, expire_in_days=1):
+def get_data_from_api(request_url, service_ident, params_diction, expire_in_days=7):
     ident = create_request_identifier(request_url, params_diction)
     data = get_from_cache(ident, CACHE_DICTION)
     if data:
@@ -105,62 +95,43 @@ def writeCSV(name, list_events):
         writer.writerow(['NAME', 'CATEGORY', 'START DATE', 'END DATE',
         	             'DESCRIPTION', 'ORGANIZER', 'VENUE', 'ADDRESS', 'URL'])
         for event in list_events:
-            writer.writerow([event.name,
-            				 event.category,
-                             event.start_date_local,
-                             event.end_date_local,
-                             event.description,
-                             event.organizer_name,
-                             event.venue_name,
-                             event.venue_address,
-                             event.url])
+            writer.writerow([event.name, event.category, event.start_date_local,
+                             event.end_date_local, event.description, event.organizer_name,
+                             event.venue_name, event.venue_address, event.url])
 
-params_diction = {"sort_by": "date",				  
-		          "start_date.keyword": "this_month",
-		          "location.address": "Ann Arbor",
-		          "location.within": "1mi",
-		          "expand": "category,organizer,venue"}
+def create_event_list(params_diction):    
+    params_diction['page'] = 1
+    # get items from the first page
+    eventbrite_result = get_data_from_api("https://www.eventbriteapi.com/v3/events/search/",
+                                          "Eventbrite",
+                                          params_diction)
+    events = eventbrite_result['events']
+    list_events = [Event(event) for event in events]
+    ## get more items beyond page 1 (50 items are limited per page)
+    total_pages = eventbrite_result['pagination']['page_count']
+    for i in range(2, total_pages+1):
+        params_diction['page'] = i
+        eventbrite_result = get_data_from_api("https://www.eventbriteapi.com/v3/events/search/",
+                                              "Eventbrite",
+                                              params_diction)
+        events = eventbrite_result['events']
+        list_events += [Event(event) for event in events]
+    return list_events
+
+# main params
+params_diction = {"sort_by": "date",                  
+                  "start_date.keyword": "this_month",
+                  "location.address": "Ann Arbor",
+                  "location.within": "1mi",
+                  "expand": "category,organizer,venue"}
 
 #----- FREE EVENTS -----#
 params_diction["price"]= "free"
-# get items from the first page
-eventbrite_result = get_data_from_api("https://www.eventbriteapi.com/v3/events/search/",
-	                                  "Eventbrite",
-	                                  params_diction)
-events = eventbrite_result['events']
-list_events_free = [Event(event) for event in events]
-
-## get more items beyond page 1 (50 items are limited per page)
-total_pages = eventbrite_result['pagination']['page_count']
-for i in range(2, total_pages+1):
-	params_diction['page'] = i
-	eventbrite_result = get_data_from_api("https://www.eventbriteapi.com/v3/events/search/",
-                                          "Eventbrite",
-                                          params_diction)
-	events = eventbrite_result['events']
-	list_events_free += [Event(event) for event in events]
-
+list_events_free = create_event_list(params_diction)
 writeCSV('Eventbrite_Free_AnnArbor', list_events_free)
 
 
 #----- PAID EVENTS -----#
 params_diction["price"]= "paid"
-params_diction['page'] = 1
-# get items from the first page
-eventbrite_result = get_data_from_api("https://www.eventbriteapi.com/v3/events/search/",
-	                                  "Eventbrite",
-	                                  params_diction)
-events = eventbrite_result['events']
-list_events_paid = [Event(event) for event in events]
-
-## get more items beyond page 1 (50 items are limited per page)
-total_pages = eventbrite_result['pagination']['page_count']
-for i in range(2, total_pages+1):
-	params_diction['page'] = i
-	eventbrite_result = get_data_from_api("https://www.eventbriteapi.com/v3/events/search/",
-                                          "Eventbrite",
-                                          params_diction)
-	events = eventbrite_result['events']
-	list_events_paid += [Event(event) for event in events]
-
+list_events_paid = create_event_list(params_diction)
 writeCSV('Eventbrite_Paid_AnnArbor', list_events_paid)
