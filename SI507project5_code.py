@@ -1,4 +1,5 @@
 # Caching system is adapted from oauth1_twitter_caching.py
+# OAuth2 system is adapted from facebook_oauth.py
 from requests_oauthlib import OAuth2Session
 import json
 import webbrowser
@@ -14,7 +15,7 @@ REDIRECT_URI = 'https://www.programsinformationpeople.org/runestone/oauth'
 REQUEST_URL = "https://www.eventbriteapi.com/v3/events/search/"
 eventbrite_session = False
 
-## CACHING SETUP
+#------- Caching -------
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 DEBUG = False
 CACHE_FNAME = "cache_contents.json"
@@ -39,7 +40,6 @@ def get_from_cache(identifier, dictionary):
         if has_cache_expired(data_assoc_dict['timestamp'],data_assoc_dict["expire_in_days"]):
             if DEBUG:
                 print("Cache has expired for {}".format(identifier))
-            # also remove old copy from cache
             del dictionary[identifier]
             data = None
         else:
@@ -55,7 +55,6 @@ def set_in_data_cache(identifier, data, expire_in_days):
         'timestamp': datetime.now().strftime(DATETIME_FORMAT),
         'expire_in_days': expire_in_days
     }
-
     with open(CACHE_FNAME, 'w', encoding='utf-8-sig') as cache_file:
         cache_json = json.dumps(CACHE_DICTION)
         cache_file.write(cache_json)
@@ -66,6 +65,7 @@ def create_request_identifier(url, params_diction):
     total_ident = url + "?" + params_str
     return total_ident.upper()
 
+#------- OAuth2 -------
 def get_data_from_api(request_url, service_ident, params_diction, expire_in_days=7):
     ident = create_request_identifier(request_url, params_diction)
     data = get_from_cache(ident, CACHE_DICTION)
@@ -75,7 +75,6 @@ def get_data_from_api(request_url, service_ident, params_diction, expire_in_days
     else:
         if DEBUG:
             print("Fetching new data from {}".format(request_url))
-
         response = make_eventbrite_request(request_url, params_diction)
         data = response.json()
         set_in_data_cache(ident, data, expire_in_days)
@@ -86,10 +85,8 @@ def make_eventbrite_request(url, params=None):
 
     if not eventbrite_session:
         start_eventbrite_session()
-
     if not params:
         params = {}
-
     return eventbrite_session.get(url, params=params)
 
 def start_eventbrite_session():
@@ -102,7 +99,6 @@ def start_eventbrite_session():
 
     if token:
         eventbrite_session = OAuth2Session(APP_KEY, token=token)
-
     else:
         eventbrite_session = OAuth2Session(APP_KEY, redirect_uri=REDIRECT_URI)
         authorization_url, state = eventbrite_session.authorization_url(AUTHORIZATION_BASE_URL)
@@ -117,7 +113,6 @@ def get_saved_token():
     with open('token.json', 'r') as f:
         token_json = f.read()
         token_dict = json.loads(token_json)
-
         return token_dict
 
 def save_token(token_dict):
@@ -169,12 +164,12 @@ params_diction = {"sort_by": "date",
                   "location.within": "1mi",
                   "expand": "category,organizer,venue"}
 
-#----- FREE EVENTS -----#
+#------- FREE EVENTS -------#
 params_diction["price"]= "free"
 list_events_free = create_event_list(REQUEST_URL, params_diction)
 writeCSV('Eventbrite_Free_AnnArbor', list_events_free)
 
-#----- PAID EVENTS -----#
+#------- PAID EVENTS -------#
 params_diction["price"]= "paid"
 list_events_paid = create_event_list(REQUEST_URL, params_diction)
 writeCSV('Eventbrite_Paid_AnnArbor', list_events_paid)
