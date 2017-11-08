@@ -1,12 +1,18 @@
 # Caching system is adapted from oauth1_twitter_caching.py
-import requests
+from requests_oauthlib import OAuth2Session
 import json
+import webbrowser
 import csv
 from datetime import datetime
-from secret_data import anonymous_token
+from secret_data import app_key, client_secret
 
-ANONYMOUS_TOKEN = anonymous_token
-URL = "https://www.eventbriteapi.com/v3/events/search/"
+APP_KEY = app_key
+CLIENT_SECRET = client_secret
+AUTHORIZATION_BASE_URL = 'https://www.eventbrite.com/oauth/authorize'
+TOKEN_URL = 'https://www.eventbrite.com/oauth/token'
+REDIRECT_URI = 'https://www.programsinformationpeople.org/runestone/oauth'
+REQUEST_URL = "https://www.eventbriteapi.com/v3/events/search/"
+eventbrite_session = False
 
 ## CACHING SETUP
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
@@ -70,13 +76,54 @@ def get_data_from_api(request_url, service_ident, params_diction, expire_in_days
         if DEBUG:
             print("Fetching new data from {}".format(request_url))
 
-        response = requests.get(request_url,
-                                headers = {"Authorization": "Bearer " + ANONYMOUS_TOKEN},
-                                verify = True,  # Verify SSL certificate
-                                params = params_diction)
+        response = make_eventbrite_request(request_url, params_diction)
         data = response.json()
         set_in_data_cache(ident, data, expire_in_days)
     return data
+
+def make_eventbrite_request(url, params=None):
+    global eventbrite_session
+
+    if not eventbrite_session:
+        start_eventbrite_session()
+
+    if not params:
+        params = {}
+
+    return eventbrite_session.get(url, params=params)
+
+def start_eventbrite_session():
+    global eventbrite_session
+
+    try:
+        token = get_saved_token()
+    except FileNotFoundError:
+        token = None
+
+    if token:
+        eventbrite_session = OAuth2Session(APP_KEY, token=token)
+
+    else:
+        eventbrite_session = OAuth2Session(APP_KEY, redirect_uri=REDIRECT_URI)
+        authorization_url, state = eventbrite_session.authorization_url(AUTHORIZATION_BASE_URL)
+        print('Opening browser to {} for authorization'.format(authorization_url))
+        webbrowser.open(authorization_url)
+        redirect_response = input('Paste the full redirect URL here: ')
+        token = eventbrite_session.fetch_token(TOKEN_URL, client_secret=CLIENT_SECRET,
+                                               authorization_response=redirect_response.strip())
+        save_token(token)
+
+def get_saved_token():
+    with open('token.json', 'r') as f:
+        token_json = f.read()
+        token_dict = json.loads(token_json)
+
+        return token_dict
+
+def save_token(token_dict):
+    with open('token.json', 'w') as f:
+        token_json = json.dumps(token_dict)
+        f.write(token_json)
 
 class Event:
   def __init__(self, diction):
@@ -124,10 +171,10 @@ params_diction = {"sort_by": "date",
 
 #----- FREE EVENTS -----#
 params_diction["price"]= "free"
-list_events_free = create_event_list(URL, params_diction)
+list_events_free = create_event_list(REQUEST_URL, params_diction)
 writeCSV('Eventbrite_Free_AnnArbor', list_events_free)
 
 #----- PAID EVENTS -----#
 params_diction["price"]= "paid"
-list_events_paid = create_event_list(URL, params_diction)
+list_events_paid = create_event_list(REQUEST_URL, params_diction)
 writeCSV('Eventbrite_Paid_AnnArbor', list_events_paid)
